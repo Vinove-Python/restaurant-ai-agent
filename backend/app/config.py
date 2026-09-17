@@ -7,4 +7,4 @@ ODOO_API_KEY = "5dc311cf8b37a9421e49fc1a73b8f1e422d06bc8"
 
 # Gemini
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
-GEMINI_MODEL = "gemini-3.6-flash"
+GEMINI_MODEL = "gemini-3.5-flash-lite"

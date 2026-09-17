@@ -12,9 +12,171 @@ import {
   Search,
   CheckCircle2,
   ChevronRight,
+  ChevronLeft,
+  Plus,
   ShoppingBag,
   Layers,
 } from 'lucide-react';
+
+function extractProductDetails(node) {
+  let name = '';
+  let price = '';
+  let imgSrc = '';
+
+  const walk = (n) => {
+    if (!n) return;
+
+    if (n.type === 'element' && n.tagName === 'img') {
+      if (n.properties?.src) imgSrc = n.properties.src;
+      if (!name && n.properties?.alt) name = n.properties.alt;
+    }
+
+    if (n.type === 'text' && n.value) {
+      const priceMatch = n.value.match(/[\$₹€£]\s*([\d\.]+)/);
+      if (priceMatch) {
+        price = priceMatch[1];
+      }
+      if (!name && n.value.trim() && !n.value.includes('http') && !n.value.startsWith('-')) {
+        const cleanName = n.value.replace(/—|-|\$[\d\.]+/g, '').trim();
+        if (cleanName.length > 2 && cleanName.length < 40) {
+          name = cleanName;
+        }
+      }
+    }
+
+    if (n.type === 'element' && (n.tagName === 'strong' || n.tagName === 'b')) {
+      const textVal = n.children?.map((c) => c.value || '').join('').trim();
+      if (textVal && !name) {
+        name = textVal;
+      }
+    }
+
+    if (n.children && Array.isArray(n.children)) {
+      n.children.forEach(walk);
+    }
+  };
+
+  walk(node);
+
+  if (name) {
+    name = name.replace(/^[—\-\s]+|[—\-\s]+$/g, '');
+  }
+
+  return { name, price, imgSrc };
+}
+
+function ProductCarouselTrack({ children }) {
+  const scrollRef = useRef(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(true);
+
+  const checkScroll = () => {
+    if (scrollRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
+      setCanScrollLeft(scrollLeft > 5);
+      setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 5);
+    }
+  };
+
+  useEffect(() => {
+    checkScroll();
+    const el = scrollRef.current;
+    if (el) {
+      el.addEventListener('scroll', checkScroll);
+      window.addEventListener('resize', checkScroll);
+      return () => {
+        el.removeEventListener('scroll', checkScroll);
+        window.removeEventListener('resize', checkScroll);
+      };
+    }
+  }, []);
+
+  const handleScroll = (direction) => {
+    if (scrollRef.current) {
+      const scrollAmount = direction === 'left' ? -260 : 260;
+      scrollRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+    }
+  };
+
+  return (
+    <div className="product-carousel-wrapper">
+      {canScrollLeft && (
+        <button
+          type="button"
+          className="carousel-nav-btn nav-btn-left"
+          onClick={() => handleScroll('left')}
+          aria-label="Scroll left"
+        >
+          <ChevronLeft size={16} />
+        </button>
+      )}
+
+      <div className="product-carousel-track" ref={scrollRef}>
+        {children}
+      </div>
+
+      {canScrollRight && (
+        <button
+          type="button"
+          className="carousel-nav-btn nav-btn-right"
+          onClick={() => handleScroll('right')}
+          aria-label="Scroll right"
+        >
+          <ChevronRight size={16} />
+        </button>
+      )}
+    </div>
+  );
+}
+
+function ProductCarouselCard({ name, price, imgSrc, onSelect }) {
+  const [imgError, setImgError] = useState(false);
+
+  return (
+    <div
+      className="product-carousel-card"
+      onClick={() => onSelect && name && onSelect(name)}
+      title={name ? `Click to order ${name}` : 'Click to order'}
+    >
+      <div className="product-card-img-box">
+        {imgError || !imgSrc ? (
+          <div className="product-card-fallback">
+            <UtensilsCrossed size={28} color="#94a3b8" />
+          </div>
+        ) : (
+          <img
+            src={imgSrc}
+            alt={name || 'Dish'}
+            onError={() => setImgError(true)}
+            loading="lazy"
+          />
+        )}
+      </div>
+
+      <div className="product-card-content">
+        <div className="product-card-title">{name || 'Menu Dish'}</div>
+        <div className="product-card-bottom">
+          {price ? (
+            <span className="product-card-price">${price}</span>
+          ) : (
+            <span style={{ flex: 1 }} />
+          )}
+          <button
+            type="button"
+            className="product-card-order-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (onSelect && name) onSelect(name);
+            }}
+          >
+            <Plus size={13} />
+            <span>Order</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function CustomerPortal() {
   const [sessionId, setSessionId] = useState(() => 'cust_' + Math.random().toString(36).substring(2, 9));
@@ -144,7 +306,7 @@ export default function CustomerPortal() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <CheckCircle2 size={24} color="#000000" />
               <div>
-                <strong style={{ color: '#000000', fontSize: '0.95rem' }}>Order #{lastOrderId} Confirmed & Sent to Kitchen!</strong>
+                <strong style={{ color: '#00ad3a', fontSize: '0.95rem' }}>Order #{lastOrderId} Confirmed & Sent to Kitchen!</strong>
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                   Our kitchen staff has been notified in real time. Thank you for dining with us!
                 </p>
@@ -210,10 +372,73 @@ export default function CustomerPortal() {
                       padding: '0.75rem 1rem',
                       borderRadius: '8px',
                       border: '1px solid var(--border-light)',
+                      maxWidth: 'stretch',
                     }}
                   >
                     <div className="markdown-body">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          ul: ({ node, children, ...props }) => {
+                            const hasImages = JSON.stringify(node).includes('"tagName":"img"');
+                            if (hasImages) {
+                              return <ProductCarouselTrack>{children}</ProductCarouselTrack>;
+                            }
+                            return <ul {...props}>{children}</ul>;
+                          },
+                          ol: ({ node, children, ...props }) => {
+                            const hasImages = JSON.stringify(node).includes('"tagName":"img"');
+                            if (hasImages) {
+                              return <ProductCarouselTrack>{children}</ProductCarouselTrack>;
+                            }
+                            return <ol {...props}>{children}</ol>;
+                          },
+                          li: ({ node, children, ...props }) => {
+                            const hasImage = JSON.stringify(node).includes('"tagName":"img"');
+                            if (hasImage) {
+                              const { name, price, imgSrc } = extractProductDetails(node);
+                              return (
+                                <ProductCarouselCard
+                                  name={name}
+                                  price={price}
+                                  imgSrc={imgSrc}
+                                  onSelect={handleItemClick}
+                                />
+                              );
+                            }
+                            return <li {...props}>{children}</li>;
+                          },
+                          p: ({ node, children, ...props }) => {
+                            const hasImage = JSON.stringify(node).includes('"tagName":"img"');
+                            if (hasImage) {
+                              const { name, price, imgSrc } = extractProductDetails(node);
+                              if (imgSrc) {
+                                return (
+                                  <ProductCarouselTrack>
+                                    <ProductCarouselCard
+                                      name={name}
+                                      price={price}
+                                      imgSrc={imgSrc}
+                                      onSelect={handleItemClick}
+                                    />
+                                  </ProductCarouselTrack>
+                                );
+                              }
+                            }
+                            return <p {...props}>{children}</p>;
+                          },
+                          img: ({ src, alt }) => {
+                            return (
+                              <ProductCarouselCard
+                                name={alt}
+                                price=""
+                                imgSrc={src}
+                                onSelect={handleItemClick}
+                              />
+                            );
+                          },
+                        }}
+                      >
                         {msg.text}
                       </ReactMarkdown>
                     </div>

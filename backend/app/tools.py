@@ -2,7 +2,7 @@ import json
 import logging
 from datetime import datetime, timezone
 from app.odoo_client import OdooClient
-from app.config import ODOO_BASE_URL, ODOO_API_KEY
+from app.config import ODOO_BASE_URL, ODOO_API_KEY, ODOO_ROOT_URL
 from google.genai import types
 
 logger = logging.getLogger(__name__)
@@ -27,7 +27,8 @@ async def _browse_menu(odoo: OdooClient, args: dict, **kwargs) -> dict:
                 items.append({
                     "id": p.get("id"),
                     "name": p.get("name"),
-                    "price": p.get("list_price")
+                    "price": p.get("list_price"),
+                    "image_url": f"{ODOO_ROOT_URL}/web/image/product.product/{p.get('id')}/image_128"
                 })
         if items:
             result.append({"name": cat_name, "items": items})
@@ -37,7 +38,12 @@ async def _search_menu_item(odoo: OdooClient, args: dict, **kwargs) -> dict:
     query = args.get("query", "").lower()
     products = await odoo.list_products()
     matches = [
-        {"id": p.get("id"), "name": p.get("name"), "price": p.get("list_price")}
+        {
+            "id": p.get("id"),
+            "name": p.get("name"),
+            "price": p.get("list_price"),
+            "image_url": f"{ODOO_ROOT_URL}/web/image/product.product/{p.get('id')}/image_128"
+        }
         for p in products if query in p.get("name", "").lower()
     ]
     return {"matches": matches}
