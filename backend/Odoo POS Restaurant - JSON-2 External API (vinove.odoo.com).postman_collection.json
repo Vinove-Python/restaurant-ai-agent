@@ -1,0 +1,1183 @@
+{
+  "info": {
+    "_postman_id": "30f14a07-a49f-4f4d-99be-25b55e973048",
+    "name": "Odoo POS Restaurant - JSON-2 External API (vinove.odoo.com)",
+    "description": "Postman collection for Odoo's new External JSON-2 API (Odoo 19.0+), covering the POS + POS Restaurant models (pos.config, pos.session, pos.order, restaurant.floor, restaurant.table, pos.payment, pos.category, product.product, res.partner).\n\nIMPORTANT PREREQUISITES\n1. The JSON-2 API (/json/2/...) is only available on Odoo databases running v19.0+ and on *Custom* Odoo pricing plans. It is NOT available on Standard or One App Free plans. Check Settings > General Settings, or ask your Customer Success Manager, if unsure.\n2. Generate an API key: log into vinove.odoo.com as the user you want to call the API as, go to your user's Preferences (avatar, top right) > Account Security > 'New API Key', give it a description + short expiry (max 3 months), and copy the key immediately - it is shown only once.\n3. Set the collection variable 'api_key' below to that key. Auth is inherited from the collection (Bearer Token) by every request in this collection.\n4. 'database' header is usually NOT needed for a single-database *.odoo.com site like vinove.odoo.com (it's disabled by default on each request) - only enable/set it if you get a 'database not found' style error.\n5. If any request returns 404 for /json/2/..., your database is still on Odoo < 19.0 - use the legacy /web/dataset/call_kw JSON-RPC endpoint instead (not included here).\n\nDocs: https://www.odoo.com/documentation/19.0/developer/reference/external_api.html",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "41951840",
+    "_collection_link": "https://go.postman.co/collection/41951840-30f14a07-a49f-4f4d-99be-25b55e973048?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "00 - Setup & Auth Check",
+      "item": [
+        {
+          "name": "Get Server Version (no auth needed)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Odoo-Database",
+                "value": "{{database}}",
+                "type": "text",
+                "disabled": true
+              },
+              {
+                "key": "User-Agent",
+                "value": "postman-odoo-json2-client",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{root_url}}/web/version",
+              "host": [
+                "{{root_url}}"
+              ],
+              "path": [
+                "web",
+                "version"
+              ]
+            },
+            "description": "Sanity check that the server/domain is reachable and shows the Odoo version. Confirms JSON-2 API availability (v19.0+)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Current User Info (context_get)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "X-Odoo-Database",
+                "value": "{{database}}",
+                "type": "text",
+                "disabled": true
+              },
+              {
+                "key": "User-Agent",
+                "value": "postman-odoo-json2-client",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/res.users/context_get",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "res.users",
+                "context_get"
+              ]
+            },
+            "description": "Confirms your API key works and returns the calling user's context (uid, lang, tz, etc). @api.model method - no 'ids' needed."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "POS Configuration",
+      "item": [
+        {
+          "name": "List POS Configs",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "X-Odoo-Database",
+                "value": "{{database}}",
+                "type": "text",
+                "disabled": true
+              },
+              {
+                "key": "User-Agent",
+                "value": "postman-odoo-json2-client",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"context\": {\n        \"lang\": \"en_US\"\n    },\n    \"domain\": [],\n    \"fields\": [\n        \"name\",\n        \"module_pos_restaurant\",\n        \"current_session_id\",\n        \"floor_ids\",\n        \"iface_available_categ_ids\"\n    ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/pos.config/search_read",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "pos.config",
+                "search_read"
+              ]
+            },
+            "description": "List all POS point-of-sale configurations (each POS shop/register config)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get POS Config by ID",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "X-Odoo-Database",
+                "value": "{{database}}",
+                "type": "text",
+                "disabled": true
+              },
+              {
+                "key": "User-Agent",
+                "value": "postman-odoo-json2-client",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"ids\": [\n        \"{{config_id}}\"\n    ],\n    \"context\": {\n        \"lang\": \"en_US\"\n    },\n    \"fields\": [\n        \"name\",\n        \"current_session_id\",\n        \"floor_ids\",\n        \"payment_method_ids\"\n    ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/pos.config/read",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "pos.config",
+                "read"
+              ]
+            },
+            "description": "Read details of one POS config by its ID."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Restaurant Floors",
+      "item": [
+        {
+          "name": "List Restaurant Floors",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "X-Odoo-Database",
+                "value": "{{database}}",
+                "type": "text",
+                "disabled": true
+              },
+              {
+                "key": "User-Agent",
+                "value": "postman-odoo-json2-client",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"context\": {\n        \"lang\": \"en_US\"\n    },\n    \"domain\": [],\n    \"fields\": [\n        \"name\",\n        \"pos_config_ids\",\n        \"table_ids\"\n    ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/restaurant.floor/search_read",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "restaurant.floor",
+                "search_read"
+              ]
+            },
+            "description": "List all restaurant floors/rooms configured for POS Restaurant."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Restaurant Floor",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "X-Odoo-Database",
+                "value": "{{database}}",
+                "type": "text",
+                "disabled": true
+              },
+              {
+                "key": "User-Agent",
+                "value": "postman-odoo-json2-client",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"context\": {\n        \"lang\": \"en_US\"\n    },\n    \"vals_list\": [\n        {\n            \"name\": \"Terrace\",\n            \"pos_config_ids\": [\n                \"{{config_id}}\"\n            ]\n        }\n    ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/restaurant.floor/create",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "restaurant.floor",
+                "create"
+              ]
+            },
+            "description": "Create a new floor. Returns the new record's ID."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Restaurant Tables",
+      "item": [
+        {
+          "name": "List All Tables",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "X-Odoo-Database",
+                "value": "{{database}}",
+                "type": "text",
+                "disabled": true
+              },
+              {
+                "key": "User-Agent",
+                "value": "postman-odoo-json2-client",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"context\": {\n        \"lang\": \"en_US\"\n    },\n    \"domain\": [\n        [\n            \"active\",\n            \"=\",\n            true\n        ]\n    ],\n    \"fields\": [\n        \"id\",\n        \"display_name\",\n        \"table_number\",\n        \"floor_id\",\n        \"seats\",\n        \"parent_id\",\n        \"active\",\n        \"floor_plan_layout\"\n    ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/restaurant.table/search_read",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "restaurant.table",
+                "search_read"
+              ]
+            },
+            "description": "List all active restaurant tables across all floors."
+          },
+          "response": []
+        },
+        {
+          "name": "List Tables by Floor",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "X-Odoo-Database",
+                "value": "{{database}}",
+                "type": "text",
+                "disabled": true
+              },
+              {
+                "key": "User-Agent",
+                "value": "postman-odoo-json2-client",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"context\": {\n        \"lang\": \"en_US\"\n    },\n    \"domain\": [\n        [\n            \"floor_id\",\n            \"=\",\n            \"{{floor_id}}\"\n        ]\n    ],\n    \"fields\": [\n        \"display_name\",\n        \"seats\"\n    ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/restaurant.table/search_read",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "restaurant.table",
+                "search_read"
+              ]
+            },
+            "description": "List tables filtered to a single floor_id."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Table",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "X-Odoo-Database",
+                "value": "{{database}}",
+                "type": "text",
+                "disabled": true
+              },
+              {
+                "key": "User-Agent",
+                "value": "postman-odoo-json2-client",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"context\": {\n        \"lang\": \"en_US\"\n    },\n    \"vals_list\": [\n        {\n            \"name\": \"T21\",\n            \"floor_id\": \"{{floor_id}}\",\n            \"seats\": 4,\n            \"shape\": \"square\"\n        }\n    ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/restaurant.table/create",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "restaurant.table",
+                "create"
+              ]
+            },
+            "description": "Create a new table on a given floor."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Table (e.g. seats/position)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "X-Odoo-Database",
+                "value": "{{database}}",
+                "type": "text",
+                "disabled": true
+              },
+              {
+                "key": "User-Agent",
+                "value": "postman-odoo-json2-client",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"ids\": [\n        \"{{table_id}}\"\n    ],\n    \"context\": {\n        \"lang\": \"en_US\"\n    },\n    \"vals\": {\n        \"seats\": 6,\n        \"position_h\": 120,\n        \"position_v\": 80\n    }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/restaurant.table/write",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "restaurant.table",
+                "write"
+              ]
+            },
+            "description": "Update fields on an existing table (seat count, layout position, shape, color, etc)."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Table",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "X-Odoo-Database",
+                "value": "{{database}}",
+                "type": "text",
+                "disabled": true
+              },
+              {
+                "key": "User-Agent",
+                "value": "postman-odoo-json2-client",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"ids\": [\n        \"{{table_id}}\"\n    ],\n    \"context\": {\n        \"lang\": \"en_US\"\n    }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/restaurant.table/unlink",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "restaurant.table",
+                "unlink"
+              ]
+            },
+            "description": "Delete a table by ID."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "POS Sessions",
+      "item": [
+        {
+          "name": "List POS Sessions",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "X-Odoo-Database",
+                "value": "{{database}}",
+                "type": "text",
+                "disabled": true
+              },
+              {
+                "key": "User-Agent",
+                "value": "postman-odoo-json2-client",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"context\": {\n        \"lang\": \"en_US\"\n    },\n    \"domain\": [\n        [\n            \"state\",\n            \"=\",\n            \"opened\"\n        ]\n    ],\n    \"fields\": [\n        \"name\",\n        \"config_id\",\n        \"state\",\n        \"start_at\",\n        \"cash_register_balance_start\",\n        \"user_id\"\n    ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/pos.session/search_read",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "pos.session",
+                "search_read"
+              ]
+            },
+            "description": "List currently opened POS sessions. Change domain to [] to list all sessions."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Session Details",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "X-Odoo-Database",
+                "value": "{{database}}",
+                "type": "text",
+                "disabled": true
+              },
+              {
+                "key": "User-Agent",
+                "value": "postman-odoo-json2-client",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"ids\": [\n        \"{{session_id}}\"\n    ],\n    \"context\": {\n        \"lang\": \"en_US\"\n    },\n    \"fields\": [\n        \"name\",\n        \"config_id\",\n        \"state\",\n        \"start_at\",\n        \"stop_at\",\n        \"order_ids\",\n        \"cash_register_balance_end_real\"\n    ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/pos.session/read",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "pos.session",
+                "read"
+              ]
+            },
+            "description": "Read full details of a single POS session by ID."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "POS Orders",
+      "item": [
+        {
+          "name": "List Recent Orders",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "X-Odoo-Database",
+                "value": "{{database}}",
+                "type": "text",
+                "disabled": true
+              },
+              {
+                "key": "User-Agent",
+                "value": "postman-odoo-json2-client",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"context\": {\n        \"lang\": \"en_US\"\n    },\n    \"domain\": [],\n    \"fields\": [\n        \"name\",\n        \"date_order\",\n        \"amount_total\",\n        \"state\",\n        \"table_id\",\n        \"partner_id\",\n        \"session_id\"\n    ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/pos.order/search_read",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "pos.order",
+                "search_read"
+              ]
+            },
+            "description": "List POS orders (most recent first is not guaranteed - add 'order' param if needed, e.g. via search with 'order': 'date_order desc')."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Order Details",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "X-Odoo-Database",
+                "value": "{{database}}",
+                "type": "text",
+                "disabled": true
+              },
+              {
+                "key": "User-Agent",
+                "value": "postman-odoo-json2-client",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"ids\": [\n        \"{{order_id}}\"\n    ],\n    \"context\": {\n        \"lang\": \"en_US\"\n    },\n    \"fields\": [\n        \"name\",\n        \"date_order\",\n        \"amount_total\",\n        \"amount_paid\",\n        \"state\",\n        \"table_id\",\n        \"partner_id\",\n        \"lines\",\n        \"payment_ids\"\n    ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/pos.order/read",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "pos.order",
+                "read"
+              ]
+            },
+            "description": "Read full details of one order, including line and payment record IDs."
+          },
+          "response": []
+        },
+        {
+          "name": "List Orders by Table",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "X-Odoo-Database",
+                "value": "{{database}}",
+                "type": "text",
+                "disabled": true
+              },
+              {
+                "key": "User-Agent",
+                "value": "postman-odoo-json2-client",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"context\": {\n        \"lang\": \"en_US\"\n    },\n    \"domain\": [\n        [\n            \"table_id\",\n            \"=\",\n            \"{{table_id}}\"\n        ]\n    ],\n    \"fields\": [\n        \"name\",\n        \"date_order\",\n        \"amount_total\",\n        \"state\"\n    ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/pos.order/search_read",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "pos.order",
+                "search_read"
+              ]
+            },
+            "description": "Find orders tied to a specific restaurant table."
+          },
+          "response": []
+        },
+        {
+          "name": "List Orders by Date Range",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "X-Odoo-Database",
+                "value": "{{database}}",
+                "type": "text",
+                "disabled": true
+              },
+              {
+                "key": "User-Agent",
+                "value": "postman-odoo-json2-client",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"context\": {\n        \"lang\": \"en_US\"\n    },\n    \"domain\": [\n        [\n            \"date_order\",\n            \">=\",\n            \"2026-09-01 00:00:00\"\n        ],\n        [\n            \"date_order\",\n            \"<=\",\n            \"2026-09-17 23:59:59\"\n        ]\n    ],\n    \"fields\": [\n        \"name\",\n        \"date_order\",\n        \"amount_total\",\n        \"state\"\n    ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/pos.order/search_read",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "pos.order",
+                "search_read"
+              ]
+            },
+            "description": "Adjust the date_order domain values (UTC, 'YYYY-MM-DD HH:MM:SS') for the range you need."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "POS Order Lines",
+      "item": [
+        {
+          "name": "List Order Lines for an Order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "X-Odoo-Database",
+                "value": "{{database}}",
+                "type": "text",
+                "disabled": true
+              },
+              {
+                "key": "User-Agent",
+                "value": "postman-odoo-json2-client",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"context\": {\n        \"lang\": \"en_US\"\n    },\n    \"domain\": [\n        [\n            \"order_id\",\n            \"=\",\n            \"{{order_id}}\"\n        ]\n    ],\n    \"fields\": [\n        \"product_id\",\n        \"qty\",\n        \"price_unit\",\n        \"price_subtotal\",\n        \"price_subtotal_incl\",\n        \"full_product_name\"\n    ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/pos.order.line/search_read",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "pos.order.line",
+                "search_read"
+              ]
+            },
+            "description": "List individual line items (dishes/products) for a given order_id."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "POS Payments",
+      "item": [
+        {
+          "name": "List Payments for an Order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "X-Odoo-Database",
+                "value": "{{database}}",
+                "type": "text",
+                "disabled": true
+              },
+              {
+                "key": "User-Agent",
+                "value": "postman-odoo-json2-client",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"context\": {\n        \"lang\": \"en_US\"\n    },\n    \"domain\": [\n        [\n            \"pos_order_id\",\n            \"=\",\n            \"{{order_id}}\"\n        ]\n    ],\n    \"fields\": [\n        \"amount\",\n        \"payment_method_id\",\n        \"payment_date\"\n    ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/pos.payment/search_read",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "pos.payment",
+                "search_read"
+              ]
+            },
+            "description": "List payment lines recorded against a specific order."
+          },
+          "response": []
+        },
+        {
+          "name": "List Payment Methods",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "X-Odoo-Database",
+                "value": "{{database}}",
+                "type": "text",
+                "disabled": true
+              },
+              {
+                "key": "User-Agent",
+                "value": "postman-odoo-json2-client",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"context\": {\n        \"lang\": \"en_US\"\n    },\n    \"domain\": [],\n    \"fields\": [\n        \"name\",\n        \"is_cash_count\",\n        \"journal_id\",\n        \"split_transactions\"\n    ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/pos.payment.method/search_read",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "pos.payment.method",
+                "search_read"
+              ]
+            },
+            "description": "List payment methods configured (cash, card, etc) - useful when building new orders."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "POS Categories & Products",
+      "item": [
+        {
+          "name": "List POS Categories",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "X-Odoo-Database",
+                "value": "{{database}}",
+                "type": "text",
+                "disabled": true
+              },
+              {
+                "key": "User-Agent",
+                "value": "postman-odoo-json2-client",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"context\": {\n        \"lang\": \"en_US\"\n    },\n    \"domain\": [],\n    \"fields\": [\n        \"name\",\n        \"parent_id\",\n        \"child_ids\"\n    ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/pos.category/search_read",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "pos.category",
+                "search_read"
+              ]
+            },
+            "description": "List product categories used to organize the POS menu."
+          },
+          "response": []
+        },
+        {
+          "name": "List Products Available in POS",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "X-Odoo-Database",
+                "value": "{{database}}",
+                "type": "text",
+                "disabled": true
+              },
+              {
+                "key": "User-Agent",
+                "value": "postman-odoo-json2-client",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"context\": {\n        \"lang\": \"en_US\"\n    },\n    \"domain\": [\n        [\n            \"available_in_pos\",\n            \"=\",\n            true\n        ]\n    ],\n    \"fields\": [\n        \"name\",\n        \"list_price\",\n        \"pos_categ_ids\",\n        \"default_code\",\n        \"barcode\"\n    ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/product.product/search_read",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "product.product",
+                "search_read"
+              ]
+            },
+            "description": "List all products flagged as available in the POS (the restaurant menu items)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Customers",
+      "item": [
+        {
+          "name": "List Customers",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "X-Odoo-Database",
+                "value": "{{database}}",
+                "type": "text",
+                "disabled": true
+              },
+              {
+                "key": "User-Agent",
+                "value": "postman-odoo-json2-client",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"context\": {\n        \"lang\": \"en_US\"\n    },\n    \"domain\": [\n        [\n            \"customer_rank\",\n            \">\",\n            0\n        ]\n    ],\n    \"fields\": [\n        \"name\",\n        \"phone\",\n        \"email\"\n    ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/res.partner/search_read",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "res.partner",
+                "search_read"
+              ]
+            },
+            "description": "List existing customer contacts."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Customer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "X-Odoo-Database",
+                "value": "{{database}}",
+                "type": "text",
+                "disabled": true
+              },
+              {
+                "key": "User-Agent",
+                "value": "postman-odoo-json2-client",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"context\": {\n        \"lang\": \"en_US\"\n    },\n    \"vals_list\": [\n        {\n            \"name\": \"John Doe\",\n            \"phone\": \"+91-9999999999\",\n            \"email\": \"john.doe@example.com\"\n        }\n    ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/res.partner/create",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "res.partner",
+                "create"
+              ]
+            },
+            "description": "Create a new customer/partner record. Returns the new record's ID."
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{api_key}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "root_url",
+      "value": "https://vinove.odoo.com"
+    },
+    {
+      "key": "base_url",
+      "value": "{{root_url}}/json/2"
+    },
+    {
+      "key": "api_key",
+      "value": "5dc311cf8b37a9421e49fc1a73b8f1e422d06bc8"
+    },
+    {
+      "key": "database",
+      "value": "vinove"
+    },
+    {
+      "key": "config_id",
+      "value": "1"
+    },
+    {
+      "key": "session_id",
+      "value": "1"
+    },
+    {
+      "key": "order_id",
+      "value": "1"
+    },
+    {
+      "key": "floor_id",
+      "value": "1"
+    },
+    {
+      "key": "table_id",
+      "value": "1"
+    },
+    {
+      "key": "partner_id",
+      "value": "1"
+    }
+  ]
+}
