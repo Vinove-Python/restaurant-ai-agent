@@ -27,8 +27,7 @@ async def _browse_menu(odoo: OdooClient, args: dict, **kwargs) -> dict:
                 items.append({
                     "id": p.get("id"),
                     "name": p.get("name"),
-                    "price": p.get("list_price"),
-                    "image_url": f"{ODOO_ROOT_URL}/web/image/product.product/{p.get('id')}/image_128"
+                    "price": p.get("list_price")
                 })
         if items:
             result.append({"name": cat_name, "items": items})
@@ -41,8 +40,7 @@ async def _search_menu_item(odoo: OdooClient, args: dict, **kwargs) -> dict:
         {
             "id": p.get("id"),
             "name": p.get("name"),
-            "price": p.get("list_price"),
-            "image_url": f"{ODOO_ROOT_URL}/web/image/product.product/{p.get('id')}/image_128"
+            "price": p.get("list_price")
         }
         for p in products if query in p.get("name", "").lower()
     ]

@@ -67,19 +67,6 @@ export default function ManagerDashboard({ wsStatus }) {
     }
   };
 
-  const handleResetSession = async () => {
-    const newId = 'mgr_' + Math.random().toString(36).substring(2, 9);
-    await clearManagerSession(sessionId).catch(() => {});
-    setSessionId(newId);
-    setMessages([
-      {
-        role: 'assistant',
-        text: "👨‍🍳 Manager session reset! What operational insights do you need?",
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      },
-    ]);
-  };
-
   return (
     <div style={{ display: 'flex', height: 'calc(100vh - 70px)', overflow: 'hidden', padding: '1rem', justifyContent: 'center' }}>
       {/* Centered Single-Column Manager AI Assistant */}
@@ -226,15 +213,6 @@ export default function ManagerDashboard({ wsStatus }) {
               </div>
             </div>
           </div>
-
-          <button
-            className="btn-secondary"
-            onClick={handleResetSession}
-            style={{ padding: '0.35rem 0.75rem', fontSize: '0.775rem' }}
-          >
-            <RotateCcw size={14} />
-            Reset Chat
-          </button>
         </div>
 
         {/* Manager Chat Input */}

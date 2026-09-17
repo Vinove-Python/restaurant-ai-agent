@@ -129,8 +129,24 @@ function ProductCarouselTrack({ children }) {
   );
 }
 
+const ODOO_IMAGE_BASE = 'https://vinove.odoo.com';
+
+function resolveProductImageUrl(src) {
+  if (!src) return '';
+  const trimmed = src.trim();
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    return trimmed;
+  }
+  const cleanId = trimmed.replace(/^[^\d]+/, '').replace(/[^\d]+$/, '');
+  if (cleanId) {
+    return `${ODOO_IMAGE_BASE}/web/image/product.product/${cleanId}/image_128`;
+  }
+  return trimmed;
+}
+
 function ProductCarouselCard({ name, price, imgSrc, onSelect }) {
   const [imgError, setImgError] = useState(false);
+  const resolvedSrc = resolveProductImageUrl(imgSrc);
 
   return (
     <div
@@ -139,13 +155,13 @@ function ProductCarouselCard({ name, price, imgSrc, onSelect }) {
       title={name ? `Click to order ${name}` : 'Click to order'}
     >
       <div className="product-card-img-box">
-        {imgError || !imgSrc ? (
+        {imgError || !resolvedSrc ? (
           <div className="product-card-fallback">
             <UtensilsCrossed size={28} color="#94a3b8" />
           </div>
         ) : (
           <img
-            src={imgSrc}
+            src={resolvedSrc}
             alt={name || 'Dish'}
             onError={() => setImgError(true)}
             loading="lazy"
@@ -191,32 +207,11 @@ export default function CustomerPortal() {
   const [loading, setLoading] = useState(false);
   const [lastOrderId, setLastOrderId] = useState(null);
 
-  // Menu Drawer State
-  const [menuDrawerOpen, setMenuDrawerOpen] = useState(false);
-  const [products, setProducts] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [menuSearch, setMenuSearch] = useState('');
-  const [loadingMenu, setLoadingMenu] = useState(false);
-
   const chatEndRef = useRef(null);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
-
-  useEffect(() => {
-    if (menuDrawerOpen && products.length === 0) {
-      setLoadingMenu(true);
-      getMenu()
-        .then((data) => {
-          setProducts(data.products || []);
-          setCategories(data.categories || []);
-        })
-        .catch((err) => console.error('Menu load error:', err))
-        .finally(() => setLoadingMenu(false));
-    }
-  }, [menuDrawerOpen, products.length]);
 
   const handleSendMessage = async (textToSend = inputMessage) => {
     const text = textToSend.trim();
@@ -260,31 +255,9 @@ export default function CustomerPortal() {
     }
   };
 
-  const handleResetSession = async () => {
-    const newId = 'cust_' + Math.random().toString(36).substring(2, 9);
-    await clearCustomerSession(sessionId).catch(() => {});
-    setSessionId(newId);
-    setLastOrderId(null);
-    setMessages([
-      {
-        role: 'assistant',
-        text: "👋 Session restarted! How may I assist you with your dining experience?",
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      },
-    ]);
-  };
-
   const handleItemClick = (productName) => {
     setInputMessage(`I'd like to order ${productName}`);
-    setMenuDrawerOpen(false);
   };
-
-  const filteredProducts = products.filter((p) => {
-    const matchesSearch = p.name.toLowerCase().includes(menuSearch.toLowerCase());
-    const matchesCateg =
-      selectedCategory === 'all' || (p.pos_categ_ids && p.pos_categ_ids.includes(Number(selectedCategory)));
-    return matchesSearch && matchesCateg;
-  });
 
   return (
     <div style={{ display: 'flex', height: 'calc(100vh - 70px)', overflow: 'hidden', position: 'relative', justifyContent: 'center' }}>
@@ -464,18 +437,6 @@ export default function CustomerPortal() {
                     )}
                   </div>
                 </div>
-
-                {/* <span
-                  style={{
-                    fontSize: '0.7rem',
-                    color: 'var(--text-muted)',
-                    marginTop: '0.2rem',
-                    marginRight: isUser ? '0.25rem' : 0,
-                    marginLeft: isUser ? 0 : '0.25rem',
-                  }}
-                >
-                  {msg.timestamp}
-                </span> */}
               </div>
             );
           })}
@@ -520,8 +481,8 @@ export default function CustomerPortal() {
           <div style={{ display: 'flex', gap: '0.5rem', overflowX: 'auto', paddingBottom: '0.2rem' }}>
             {[
               { label: '📖 Show Menu', prompt: 'Could you please show me the menu?' },
-              { label: '🍔 Popular Dishes', prompt: 'What are your most popular dishes today?' },
-              { label: '🍷 Drinks & Specials', prompt: 'What drinks or special items do you have?' },
+              { label: '🍕 I want Pizza', prompt: 'What pizza options do you have?' },
+              { label: '🍷 Drinks', prompt: 'What drinks items do you have?' },
               { label: '🛍️ Order Dine-in', prompt: 'I want to place an order for dine in.' },
             ].map((pill, pIdx) => (
               <button
@@ -537,25 +498,6 @@ export default function CustomerPortal() {
                 {pill.label}
               </button>
             ))}
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <button
-              className="btn-secondary"
-              onClick={() => setMenuDrawerOpen(!menuDrawerOpen)}
-              style={{ padding: '0.35rem 0.75rem', fontSize: '0.775rem' }}
-            >
-              <Layers size={14} />
-              {menuDrawerOpen ? 'Close Menu' : 'View Menu'}
-            </button>
-            <button
-              className="btn-secondary"
-              onClick={handleResetSession}
-              style={{ padding: '0.35rem 0.75rem', fontSize: '0.775rem' }}
-            >
-              <RotateCcw size={14} />
-              New Session
-            </button>
           </div>
         </div>
 
@@ -595,121 +537,6 @@ export default function CustomerPortal() {
           </button>
         </form>
       </div>
-
-      {/* Visual Menu Side Drawer */}
-      {menuDrawerOpen && (
-        <div
-          className="glass-panel"
-          style={{
-            width: '350px',
-            margin: '1rem 1rem 1rem 0',
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
-          }}
-        >
-          <div style={{ padding: '1rem', borderBottom: '1px solid var(--border-light)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 style={{ fontSize: '1rem', color: '#000000' }}>Restaurant Menu</h3>
-            <button
-              onClick={() => setMenuDrawerOpen(false)}
-              style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1.1rem' }}
-            >
-              ✕
-            </button>
-          </div>
-
-          <div style={{ padding: '0.75rem 1rem', borderBottom: '1px solid var(--border-light)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            <div style={{ position: 'relative' }}>
-              <Search size={14} style={{ position: 'absolute', left: '10px', top: '10px', color: 'var(--text-muted)' }} />
-              <input
-                type="text"
-                placeholder="Search menu..."
-                value={menuSearch}
-                onChange={(e) => setMenuSearch(e.target.value)}
-                style={{
-                  width: '100%',
-                  background: '#ffffff',
-                  border: '1px solid var(--border-light)',
-                  borderRadius: '6px',
-                  padding: '0.45rem 0.45rem 0.45rem 2rem',
-                  color: '#000000',
-                  fontSize: '0.825rem',
-                  outline: 'none',
-                }}
-              />
-            </div>
-
-            {categories.length > 0 && (
-              <div style={{ display: 'flex', gap: '0.35rem', overflowX: 'auto', paddingBottom: '0.2rem' }}>
-                <button
-                  onClick={() => setSelectedCategory('all')}
-                  className="badge"
-                  style={{
-                    cursor: 'pointer',
-                    background: selectedCategory === 'all' ? '#000000' : '#f1f3f5',
-                    color: selectedCategory === 'all' ? '#ffffff' : '#000000',
-                    border: '1px solid #cbd5e1',
-                  }}
-                >
-                  All
-                </button>
-                {categories.map((c) => (
-                  <button
-                    key={c.id}
-                    onClick={() => setSelectedCategory(c.id.toString())}
-                    className="badge"
-                    style={{
-                      cursor: 'pointer',
-                      background: selectedCategory === c.id.toString() ? '#000000' : '#f1f3f5',
-                      color: selectedCategory === c.id.toString() ? '#ffffff' : '#000000',
-                      border: '1px solid #cbd5e1',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {c.name}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div style={{ flex: 1, overflowY: 'auto', padding: '0.875rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            {loadingMenu ? (
-              <div style={{ textAlign: 'center', color: 'var(--text-muted)', marginTop: '2rem' }}>Loading menu...</div>
-            ) : filteredProducts.length === 0 ? (
-              <div style={{ textAlign: 'center', color: 'var(--text-muted)', marginTop: '2rem' }}>No products found</div>
-            ) : (
-              filteredProducts.map((prod) => (
-                <div
-                  key={prod.id}
-                  className="glass-card"
-                  onClick={() => handleItemClick(prod.name)}
-                  style={{
-                    padding: '0.75rem',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                  }}
-                >
-                  <div>
-                    <strong style={{ fontSize: '0.875rem', color: '#000000', display: 'block' }}>{prod.name}</strong>
-                    <span style={{ fontSize: '0.725rem', color: 'var(--text-muted)' }}>ID: #{prod.id}</span>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <span style={{ fontSize: '0.925rem', fontWeight: 700, color: '#000000' }}>
-                      ${typeof prod.list_price === 'number' ? prod.list_price.toFixed(2) : prod.list_price}
-                    </span>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '2px' }}>
-                      Select <ChevronRight size={10} />
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
