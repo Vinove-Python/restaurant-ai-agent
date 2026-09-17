@@ -64,7 +64,6 @@ async def _get_available_tables(odoo: OdooClient, args: dict, **kwargs) -> dict:
 
 async def _create_order(odoo: OdooClient, args: dict, **kwargs) -> dict:
     items = args.get("items", [])
-    table_id = args.get("table_id")
     customer_name = args.get("customer_name")
     customer_phone = args.get("customer_phone", "")
     customer_email = args.get("customer_email", "")
@@ -72,6 +71,19 @@ async def _create_order(odoo: OdooClient, args: dict, **kwargs) -> dict:
     
     if not items:
         return {"success": False, "message": "No items provided"}
+        
+    # Auto-select an available table
+    table_id = None
+    try:
+        tables_res = await _get_available_tables(odoo, args={})
+        floors = tables_res.get("floors", [])
+        for floor in floors:
+            tables = floor.get("tables", [])
+            if tables:
+                table_id = tables[0].get("id")
+                break
+    except Exception as e:
+        logger.warning(f"Failed to auto-select table: {e}")
         
     products = await odoo.list_products()
     prod_map = {p["id"]: p for p in products}
@@ -226,7 +238,6 @@ async def execute_tool(tool_name: str, args: dict, odoo: OdooClient, **kwargs) -
         # Customer tools
         "browse_menu": _browse_menu,
         "search_menu_item": _search_menu_item,
-        "get_available_tables": _get_available_tables,
         "create_order": _create_order,
         "get_order_status": _get_order_status,
         "create_customer": _create_customer,
@@ -234,8 +245,6 @@ async def execute_tool(tool_name: str, args: dict, odoo: OdooClient, **kwargs) -
         "list_active_orders": _list_active_orders,
         "get_order_details": _get_order_details,
         "update_order_status": _update_order_status,
-        "list_sessions": _list_sessions,
-        "get_table_overview": _get_table_overview,
     }
     handler = handlers.get(tool_name)
     if not handler:
@@ -270,16 +279,6 @@ CUSTOMER_TOOLS = types.Tool(
             ),
         ),
         types.FunctionDeclaration(
-            name="get_available_tables",
-            description="Get available restaurant tables, optionally filtered by floor name. Use when customer wants to choose a table or check availability.",
-            parameters=types.Schema(
-                type=types.Type.OBJECT,
-                properties={
-                    "floor_name": types.Schema(type=types.Type.STRING, description="Optional floor name to filter tables"),
-                },
-            ),
-        ),
-        types.FunctionDeclaration(
             name="create_order",
             description="Place a new restaurant order. Call this ONLY after confirming all items with the customer. Requires at least the list of items.",
             parameters=types.Schema(
@@ -297,7 +296,6 @@ CUSTOMER_TOOLS = types.Tool(
                         ),
                         description="List of items to order",
                     ),
-                    "table_id": types.Schema(type=types.Type.INTEGER, description="Table ID for dine-in orders"),
                     "customer_name": types.Schema(type=types.Type.STRING, description="Customer's name"),
                     "customer_phone": types.Schema(type=types.Type.STRING, description="Customer's phone number"),
                     "special_requests": types.Schema(type=types.Type.STRING, description="Any special requests or notes for the order"),
@@ -363,22 +361,6 @@ MANAGER_TOOLS = types.Tool(
                     "status": types.Schema(type=types.Type.STRING, description="New status: accepted, preparing, ready, or delivered"),
                 },
                 required=["order_id", "status"],
-            ),
-        ),
-        types.FunctionDeclaration(
-            name="list_sessions",
-            description="List all currently open POS sessions.",
-            parameters=types.Schema(
-                type=types.Type.OBJECT,
-                properties={},
-            ),
-        ),
-        types.FunctionDeclaration(
-            name="get_table_overview",
-            description="Get an overview of all restaurant tables and their current occupancy/order status.",
-            parameters=types.Schema(
-                type=types.Type.OBJECT,
-                properties={},
             ),
         ),
     ]
