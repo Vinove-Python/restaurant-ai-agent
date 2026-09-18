@@ -67,7 +67,7 @@ async def get_tables():
 ws_router = APIRouter(tags=["Manager WebSocket"])
 
 @ws_router.websocket("/ws/manager/notifications")
-async def manager_notifications(websocket: WebSocket):
+async def manager_notifications(websocket: WebSocket, session_id: str | None = None):
     """WebSocket endpoint for real-time order notifications to managers."""
     await notification_manager.subscribe(websocket)
     try:
@@ -79,7 +79,7 @@ async def manager_notifications(websocket: WebSocket):
                 await websocket.send_text('{"type": "pong"}')
     except WebSocketDisconnect:
         await notification_manager.unsubscribe(websocket)
-        logger.info("Manager WebSocket disconnected")
+        logger.info(f"Manager WebSocket disconnected (session_id: {session_id})")
     except Exception as e:
         await notification_manager.unsubscribe(websocket)
         logger.exception("WebSocket error")

@@ -194,12 +194,49 @@ function ProductCarouselCard({ name, price, imgSrc, onSelect }) {
   );
 }
 
-export default function CustomerPortal() {
+function CustomerStatusCard({ msg }) {
+  const { orderId, statusInfo, timestamp } = msg;
+  const { title, icon, color, bg, desc } = statusInfo;
+
+  return (
+    <div
+      style={{
+        background: bg,
+        border: `1px solid ${color}40`,
+        borderLeft: `5px solid ${color}`,
+        borderRadius: '8px',
+        padding: '0.875rem 1rem',
+        maxWidth: '100%',
+        width: '100%',
+        margin: '0.25rem 0',
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <span style={{ fontSize: '1.2rem' }}>{icon}</span>
+          <strong style={{ color: '#000000', fontSize: '0.9rem' }}>{title}</strong>
+        </div>
+        <span style={{ fontSize: '0.725rem', color: '#64748b', fontWeight: 600 }}>
+          Order #{orderId}
+        </span>
+      </div>
+      <p style={{ fontSize: '0.825rem', color: '#334155', margin: 0, lineHeight: 1.4 }}>
+        {desc}
+      </p>
+      <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '0.4rem', textAlign: 'right' }}>
+        {timestamp}
+      </div>
+    </div>
+  );
+}
+
+export default function CustomerPortal({ latestStatusEvent }) {
   const [sessionId, setSessionId] = useState(() => 'cust_' + Math.random().toString(36).substring(2, 9));
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
-      text: "Welcome to Gourmet Dining! 👋\n\nI'm your AI host. Would you like to **check our menu** or **place an order** today?",
+      text: "Welcome! 👋 I'm your AI host.\n\nWould you like to **check our menu** or **place an order** today?",
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
@@ -212,6 +249,41 @@ export default function CustomerPortal() {
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
+
+  // Insert real-time order status updates into customer chat stream
+  useEffect(() => {
+    if (!latestStatusEvent || latestStatusEvent.type !== 'order_status_update') return;
+
+    const { order_id, status } = latestStatusEvent;
+
+    setMessages((prev) => {
+      const alreadyAdded = prev.some(
+        (m) => m.isStatusNotification && m.orderId === order_id && m.status === status
+      );
+      if (alreadyAdded) return prev;
+
+      const statusMap = {
+        accepted: { title: 'Order Accepted', icon: '✅', color: '#000000', bg: '#f8fafc', desc: `Your order #${order_id} has been accepted by the restaurant manager!` },
+        preparing: { title: 'Preparing Your Food', icon: '🍳', color: '#d97706', bg: '#fffbeb', desc: `Our kitchen team is now preparing your food for order #${order_id}.` },
+        ready: { title: 'Order Ready!', icon: '🔔', color: '#059669', bg: '#ecfdf5', desc: `Great news! Order #${order_id} is ready.` },
+        delivered: { title: 'Order Delivered', icon: '🚚', color: '#2563eb', bg: '#eff6ff', desc: `Order #${order_id} has been delivered. Enjoy your meal!` },
+      };
+
+      const info = statusMap[status] || { title: `Status: ${status}`, icon: 'ℹ️', color: '#475569', bg: '#f8fafc', desc: `Order #${order_id} status updated to ${status}.` };
+
+      return [
+        ...prev,
+        {
+          role: 'assistant',
+          isStatusNotification: true,
+          orderId: order_id,
+          status: status,
+          statusInfo: info,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        },
+      ];
+    });
+  }, [latestStatusEvent]);
 
   const handleSendMessage = async (textToSend = inputMessage) => {
     const text = textToSend.trim();
@@ -303,6 +375,34 @@ export default function CustomerPortal() {
         >
           {messages.map((msg, index) => {
             const isUser = msg.role === 'user';
+
+            if (msg.isStatusNotification) {
+              return (
+                <div key={index} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', width: '100%', maxWidth: '85%' }}>
+                    <div
+                      style={{
+                        width: '30px',
+                        height: '30px',
+                        borderRadius: '50%',
+                        background: '#f1f3f5',
+                        border: '1px solid #cbd5e1',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                        alignSelf: 'flex-start',
+                        marginTop: '4px',
+                      }}
+                    >
+                      <Bot size={16} color="#000000" />
+                    </div>
+                    <CustomerStatusCard msg={msg} />
+                  </div>
+                </div>
+              );
+            }
+
             return (
               <div
                 key={index}

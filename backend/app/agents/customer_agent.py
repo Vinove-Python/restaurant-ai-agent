@@ -57,6 +57,28 @@ class CustomerAgent:
                 raise ValueError("GEMINI_API_KEY environment variable is not set")
             self._client = genai.Client(api_key=GEMINI_API_KEY)
         return self._client
+
+    def inject_status_update(self, event: dict):
+        """Inject real-time order status updates into customer sessions."""
+        order_id = event.get("order_id")
+        status = event.get("status")
+        
+        status_text = (
+            f"[SYSTEM NOTIFICATION - ORDER STATUS UPDATE]\n"
+            f"The restaurant manager has updated the status of Order #{order_id} to: '{status}'.\n"
+            f"If the customer asks about the status of order #{order_id}, inform them that it is currently '{status}'."
+        )
+        user_content = types.Content(role="user", parts=[types.Part.from_text(text=status_text)])
+        model_content = types.Content(
+            role="model",
+            parts=[types.Part.from_text(text=f"Understood. Order #{order_id} status is now updated to '{status}'.")]
+        )
+        
+        for sid in self._sessions:
+            self._sessions[sid].append(user_content)
+            self._sessions[sid].append(model_content)
+            
+        logger.info(f"Injected status update for order #{order_id} ('{status}') into {len(self._sessions)} customer sessions")
     
     async def chat(self, session_id: str, user_message: str) -> dict:
         """Process a customer message and return the agent's response."""

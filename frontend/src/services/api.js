@@ -75,7 +75,7 @@ export async function getHealthStatus() {
 /**
  * WebSocket Connection Helper for Manager Real-time Order Notifications
  */
-export function createNotificationSocket({ onMessage, onStatusChange }) {
+export function createNotificationSocket({ onMessage, onStatusChange }, sessionId = null) {
   let ws = null;
   let pingInterval = null;
   let isClosedIntentionally = false;
@@ -86,7 +86,10 @@ export function createNotificationSocket({ onMessage, onStatusChange }) {
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.host;
-    const wsUrl = `${protocol}//${host}/ws/manager/notifications`;
+    let wsUrl = `${protocol}//${host}/ws/manager/notifications`;
+    if (sessionId) {
+      wsUrl += `?session_id=${encodeURIComponent(sessionId)}`;
+    }
 
     onStatusChange?.('connecting');
     ws = new WebSocket(wsUrl);

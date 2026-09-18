@@ -98,16 +98,27 @@ async def _create_order(odoo: OdooClient, args: dict, **kwargs) -> dict:
     session_id = sessions[0]["id"]
     
     lines = []
+    detailed_items = []
+    total_amount = 0.0
     for item in items:
         pid = item.get("product_id")
         qty = item.get("quantity", 1)
         if pid not in prod_map:
             continue
-        price_unit = prod_map[pid].get("list_price", 0)
+        price_unit = float(prod_map[pid].get("list_price", 0.0))
+        subtotal = round(price_unit * qty, 2)
+        total_amount += subtotal
         lines.append({
             "product_id": pid,
             "qty": qty,
             "price_unit": price_unit
+        })
+        detailed_items.append({
+            "product_id": pid,
+            "name": prod_map[pid].get("name", f"Product #{pid}"),
+            "quantity": qty,
+            "price_unit": price_unit,
+            "subtotal": subtotal
         })
     
     if not lines:
@@ -122,10 +133,16 @@ async def _create_order(odoo: OdooClient, args: dict, **kwargs) -> dict:
     )
     
     order_details = {
-        "items": items,
+        "order_id": order_id,
+        "items": detailed_items,
         "table_id": table_id,
-        "customer_name": customer_name,
-        "special_requests": special_requests
+        "customer_name": customer_name or "Guest",
+        "customer_phone": customer_phone,
+        "customer_email": customer_email,
+        "special_requests": special_requests,
+        "total_amount": round(total_amount, 2),
+        "status": "received",
+        "timestamp": datetime.now(timezone.utc).isoformat()
     }
     
     order_status_store[order_id] = {
@@ -136,11 +153,7 @@ async def _create_order(odoo: OdooClient, args: dict, **kwargs) -> dict:
     
     notification_callback = kwargs.get("notification_callback")
     if notification_callback:
-        await notification_callback({
-            "order_id": order_id,
-            "status": "received",
-            "details": order_details
-        })
+        await notification_callback(order_details)
         
     return {"success": True, "order_id": order_id, "message": f"Order {order_id} created successfully"}
 
@@ -203,6 +216,18 @@ async def _update_order_status(odoo: OdooClient, args: dict, **kwargs) -> dict:
     
     order_status_store[order_id]["status"] = status
     order_status_store[order_id]["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    # Broadcast status update event to customer & manager clients
+    from app.notifications import notification_manager
+    event = {
+        "type": "order_status_update",
+        "order_id": order_id,
+        "status": status,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "order_details": order_status_store[order_id].get("order_details", {})
+    }
+    await notification_manager.broadcast(event)
+
     return {"success": True, "order_id": order_id, "status": status}
 
 async def _list_sessions(odoo: OdooClient, args: dict, **kwargs) -> dict:

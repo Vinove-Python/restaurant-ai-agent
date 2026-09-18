@@ -36,6 +36,10 @@ async def lifespan(app: FastAPI):
     customer_routes.customer_agent = customer_agent
     manager_routes.manager_agent = manager_agent
     
+    from app.notifications import notification_manager
+    notification_manager.set_manager_agent(manager_agent)
+    notification_manager.set_customer_agent(customer_agent)
+    
     logger.info("AI agents initialized")
     
     yield

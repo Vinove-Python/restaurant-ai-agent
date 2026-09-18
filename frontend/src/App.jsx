@@ -17,6 +17,9 @@ export default function App() {
   // Backend Health state
   const [backendHealth, setBackendHealth] = useState(null);
 
+  const [latestOrderEvent, setLatestOrderEvent] = useState(null);
+  const [latestStatusEvent, setLatestStatusEvent] = useState(null);
+
   useEffect(() => {
     getHealthStatus().then(setBackendHealth);
   }, []);
@@ -27,12 +30,13 @@ export default function App() {
       onMessage: (event) => {
         if (event.type === 'new_order') {
           playNotificationChime();
+          setLatestOrderEvent(event);
 
           const toastObj = {
             id: Date.now() + Math.random(),
             order_id: event.order_id,
             table_id: event.table_id,
-            note: event.note,
+            note: event.note || event.special_requests,
             timestamp: event.timestamp || new Date().toISOString(),
           };
 
@@ -42,6 +46,8 @@ export default function App() {
           setTimeout(() => {
             setToasts((prev) => prev.filter((t) => t.id !== toastObj.id));
           }, 7000);
+        } else if (event.type === 'order_status_update') {
+          setLatestStatusEvent(event);
         }
       },
     });
@@ -128,7 +134,7 @@ export default function App() {
             }}
           >
             <Utensils size={15} />
-            Customer Ordering Portal
+            Customer Portal
           </button>
 
           <button
@@ -148,7 +154,7 @@ export default function App() {
             }}
           >
             <LayoutDashboard size={15} />
-            Manager Dashboard
+            Manager Portal
           </button>
         </div>
 
@@ -188,11 +194,12 @@ export default function App() {
 
       {/* View Content */}
       <main style={{ flex: 1, position: 'relative' }}>
-        {activeTab === 'customer' ? (
-          <CustomerPortal />
-        ) : (
-          <ManagerDashboard wsStatus={wsStatus} />
-        )}
+        <div style={{ display: activeTab === 'customer' ? 'block' : 'none', height: '100%' }}>
+          <CustomerPortal latestStatusEvent={latestStatusEvent} />
+        </div>
+        <div style={{ display: activeTab === 'manager' ? 'block' : 'none', height: '100%' }}>
+          <ManagerDashboard wsStatus={wsStatus} latestOrderEvent={latestOrderEvent} />
+        </div>
       </main>
     </div>
   );
